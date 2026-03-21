@@ -254,9 +254,10 @@ function setSpell(s){
 
 function aimAngle(fromX,fromY){
   fromX=fromX||player.x;fromY=fromY||player.y;
-  if(bossOn&&boss) return Math.atan2(boss.y-fromY,boss.x-fromX);
-  if(enemies.length>0){
-    const t=enemies.reduce((a,b)=>dist({x:fromX,y:fromY},a)<dist({x:fromX,y:fromY},b)?a:b);
+  const candidates=[...enemies];
+  if(bossOn&&boss) candidates.push(boss);
+  if(candidates.length>0){
+    const t=candidates.reduce((a,b)=>dist({x:fromX,y:fromY},a)<dist({x:fromX,y:fromY},b)?a:b);
     return Math.atan2(t.y-fromY,t.x-fromX);
   }
   return -Math.PI/2;
@@ -344,7 +345,7 @@ function spawnWave(w){
   enemies=[];enemyBullets=[];bossOn=false;boss=null;
   waveTransition=false;floatingObjects=[];
   if(w%BOSS_INTERVAL===0){spawnBoss(w);return;}
-  const count=5+w*2;
+  const count=10+w*3;
   for(let i=0;i<count;i++){
     const side=Math.floor(Math.random()*4);let x,y;
     if(side===0){x=Math.random()*W;y=-30;}
@@ -352,7 +353,7 @@ function spawnWave(w){
     else if(side===2){x=Math.random()*W;y=H+30;}
     else{x=-30;y=Math.random()*H;}
     const t=ETYPES[Math.floor(Math.random()*ETYPES.length)];
-    enemies.push({x,y,hp:t.hp,maxHp:t.hp,spd:t.spd*(0.8+w*0.03),
+    enemies.push({x,y,hp:t.hp,maxHp:t.hp,spd:t.spd*(0.8+w*0.015),
       r:t.r,col:t.col,eye:t.eye,name:t.name,pts:t.pts,
       shoots:t.shoots,rate:t.rate,st:Math.random()*t.rate+80,
       frozen:0,stun:0,burn:0});
