@@ -726,7 +726,7 @@ function update(){
         if(e.hp<=0){
           playSound('enemyDie');burst(e.x,e.y,'#ff8844',10,3);
           if(iceLv>=3&&e.frozen>0){enemies.forEach((ne,ni)=>{if(ni!==ei&&dist(ne,e)<80){ne.hp-=2;ne.frozen=Math.max(ne.frozen,60);burst(e.x,e.y,'#88eeff',8,3);}});}
-          score+=e.pts;totalKills++;enemies.splice(ei,1);}}
+          score+=e.pts;totalKills++;enemies.splice(ei,1);}
         break;
       }
     }
