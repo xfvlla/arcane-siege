@@ -64,7 +64,6 @@ canvas{display:block;}
 </div>
 <div id="bars">
   COOLDOWN: <div id="cd-wrap"><div id="cd-fill"></div></div>
-  &nbsp;&nbsp;POWER: <div id="pw-wrap"><div id="pw-fill"></div></div>
   <span id="status">✅ READY</span>
 </div>
 <div id="lightning-bar">
@@ -294,10 +293,10 @@ function getLtBounces(){return lightningLv>=2?4:2;}
 function getIceFreeze(){return iceLv>=1?360:180;}
 let score=0,lives=5,wave=1,totalKills=0,realmIndex=0;
 let player,bullets,enemies,particles,enemyBullets,atmosphereParticles;
-let shieldOn=false,shieldT=0,tripleOn=false,tripleT=0;
+let shieldOn=false,shieldT=0;
 let spell='fire',gameOver=false,started=false,paused=false;
 let waveMsg='',waveMsgT=0,cpMsg='',cpT=0;
-let bossOn=false,boss=null,frame=0,powerMeter=0;
+let bossOn=false,boss=null,frame=0;
 let screenShake=0,waveTransition=false,pendingUpgrade=false;
 let floatingObjects=[];
 let invincibleOn=false,invincibleT=0;
@@ -307,7 +306,6 @@ let iceMines=[];
 const FIRE_CD=18,ICE_CD=22,LIGHTNING_CHARGE_MAX=90;
 let fireCooldown=0,iceCooldown=0;
 let ltCharge=0,ltCharging=false,ltReady=false;
-const POWER_MAX=15,POWERUP_DMG_MULT=2.5;
 const keys={};
 
 const REALMS=[
@@ -381,7 +379,7 @@ function mkBullet(type,angle,dmgMult=1,extra={}){
 }
 
 function fireLightning(){
-  const dm=tripleOn?POWERUP_DMG_MULT:1;
+  const dm=1;
   const angle=aimAngle(player.x,player.y);
   bullets.push({...mkBullet('lightning',angle,dm),bounceLeft:getLtBounces(),bounced:[],pinball:true});
 }
@@ -426,11 +424,11 @@ const ETYPES=[
 function startGame(){
   document.getElementById('overlay').style.display='none';
   score=0;lives=5;wave=1;totalKills=0;realmIndex=0;
-  shieldOn=false;shieldT=0;tripleOn=false;tripleT=0;
+  shieldOn=false;shieldT=0;
   invincibleOn=false;invincibleT=0;damageAuraOn=false;damageAuraT=0;
   gameOver=false;gameOverShown=false;started=true;bossOn=false;boss=null;paused=false;
   fireLv=0;iceLv=0;lightningLv=0;spawnQueue=[];spawnTimer=0;activeSpawnInterval=420;
-  frame=0;powerMeter=0;
+  frame=0;
   fireCooldown=0;iceCooldown=0;ltCharge=0;ltCharging=false;ltReady=false;
   waveTransition=false;pendingUpgrade=false;floatingObjects=[];
   bullets=[];enemies=[];particles=[];enemyBullets=[];iceMines=[];
@@ -638,16 +636,15 @@ function update(){
   if(spawnQueue.length>0){spawnTimer--;if(spawnTimer<=0){const b=spawnQueue.shift();enemies.push(...b);spawnTimer=activeSpawnInterval;}}
   if((keys['a']||keys['A'])&&spell==='fire'&&started){
     if(fireCooldown===0){
-      const dm=(tripleOn?POWERUP_DMG_MULT:1)*(fireLv>=2?1.5:1);
+      const dm=(fireLv>=2?1.5:1);
       const ang=aimAngle();
-      if(tripleOn||fireLv>=3){const td=fireLv>=3?dm*0.6:dm;[-0.45,0,0.45].forEach(off=>bullets.push(mkBullet('fire',ang+off,td)));}
+      if(fireLv>=3){[-0.45,0,0.45].forEach(off=>bullets.push(mkBullet('fire',ang+off,dm*0.6)));}
       else bullets.push(mkBullet('fire',ang,dm));
       fireCooldown=getFireCD();playSound('fire');}
   }
   if((keys['s']||keys['S'])&&spell==='ice'&&started){
-    if(iceCooldown===0){const dm=tripleOn?POWERUP_DMG_MULT:1;const ang=aimAngle();
-      if(tripleOn){[-0.3,0,0.3].forEach(off=>bullets.push(mkBullet('ice',ang+off,dm)));}
-      else bullets.push(mkBullet('ice',ang,dm));iceCooldown=ICE_CD;playSound('ice');}
+    if(iceCooldown===0){const ang=aimAngle();
+      bullets.push(mkBullet('ice',ang,1));iceCooldown=ICE_CD;playSound('ice');}
   }
   if(ltCharging&&!ltReady){ltCharge++;if(ltCharge>=getLtChargeMax()){ltReady=true;ltCharging=false;stopLtSound();burst(player.x,player.y,'#cc99ff',12,3);}}
   const moveSpd=player.slowed>0?player.spd*0.5:player.spd;if(player.slowed>0)player.slowed--;
@@ -664,7 +661,7 @@ function update(){
     enemies.forEach((e,ei)=>{
       if(dist(e,player)<50){
         e.hp-=0.15;if(frame%10===0)burst(e.x,e.y,'#ff2222',3,2);
-        if(e.hp<=0){burst(e.x,e.y,'#ff8844',10,3);playSound('enemyDie');score+=e.pts;totalKills++;powerMeter=Math.min(POWER_MAX,powerMeter+1);enemies.splice(ei,1);if(powerMeter>=POWER_MAX){powerMeter=0;tripleOn=true;tripleT=480;burst(player.x,player.y,'#ffcc00',20,4);}}
+        if(e.hp<=0){burst(e.x,e.y,'#ff8844',10,3);playSound('enemyDie');score+=e.pts;totalKills++;enemies.splice(ei,1);}
       }
     });
   }
@@ -690,7 +687,6 @@ function update(){
   particles=particles.filter(p=>p.life>0);
   updateAtmosphere();
   if(shieldT>0){shieldT--;if(shieldT<=0)shieldOn=false;}
-  if(tripleT>0){tripleT--;if(tripleT<=0)tripleOn=false;}
   if(waveMsgT>0)waveMsgT--;if(cpT>0)cpT--;
   enemies.forEach(e=>{
     if(e.frozen>0){e.frozen--;return;}if(e.stun>0){e.stun--;return;}
@@ -730,7 +726,7 @@ function update(){
         if(e.hp<=0){
           playSound('enemyDie');burst(e.x,e.y,'#ff8844',10,3);
           if(iceLv>=3&&e.frozen>0){enemies.forEach((ne,ni)=>{if(ni!==ei&&dist(ne,e)<80){ne.hp-=2;ne.frozen=Math.max(ne.frozen,60);burst(e.x,e.y,'#88eeff',8,3);}});}
-          score+=e.pts;totalKills++;powerMeter=Math.min(POWER_MAX,powerMeter+1);enemies.splice(ei,1);if(powerMeter>=POWER_MAX){powerMeter=0;tripleOn=true;tripleT=480;burst(player.x,player.y,'#ffcc00',20,4);}}
+          score+=e.pts;totalKills++;enemies.splice(ei,1);}}
         break;
       }
     }
@@ -746,14 +742,13 @@ function update(){
   document.getElementById('wv').textContent=wave;
   document.getElementById('rl').textContent=REALMS[realmIndex].name;
   document.getElementById('lv').textContent='❤'.repeat(Math.max(0,lives));
-  document.getElementById('pw-fill').style.width=(powerMeter/POWER_MAX*100)+'%';
   const cdV=spell==='fire'?fireCooldown:iceCooldown;const cdM=spell==='fire'?getFireCD():ICE_CD;
   document.getElementById('cd-fill').style.width=spell==='lightning'?'100%':((1-cdV/cdM)*100)+'%';
   const ltP=(ltCharge/getLtChargeMax())*100;
   document.getElementById('lt-fill').style.width=ltP+'%';
   document.getElementById('lt-fill').style.background=ltReady?'#ffffff':'linear-gradient(90deg,#7733ff,#cc99ff)';
   document.getElementById('lt-status').textContent=spell!=='lightning'?'':ltReady?'⚡ RELEASE D':ltCharging?`CHARGING ${Math.min(100,Math.round(ltP))}%`:'HOLD D TO CHARGE';
-  document.getElementById('status').textContent=invincibleOn?`💛 INVINCIBLE ${Math.ceil(invincibleT/60)}s`:damageAuraOn?`🔴 AURA ${Math.ceil(damageAuraT/60)}s`:tripleOn?`✨ TRIPLE+ ${Math.ceil(tripleT/60)}s`:'✅ READY';
+  document.getElementById('status').textContent=invincibleOn?`💛 INVINCIBLE ${Math.ceil(invincibleT/60)}s`:damageAuraOn?`🔴 AURA ${Math.ceil(damageAuraT/60)}s`:'✅ READY';
 }
 
 function nextWave(){
