@@ -303,7 +303,7 @@ let invincibleOn=false,invincibleT=0;
 let damageAuraOn=false,damageAuraT=0;
 let iceMines=[];
 
-const FIRE_CD=18,ICE_CD=22,LIGHTNING_CHARGE_MAX=90;
+const FIRE_CD=18,ICE_CD=18,LIGHTNING_CHARGE_MAX=90;
 let fireCooldown=0,iceCooldown=0;
 let ltCharge=0,ltCharging=false,ltReady=false;
 const keys={};
@@ -516,6 +516,7 @@ function spawnBoss(w){
     summonTimer:Math.max(320,620-bossNum*40),
     walkTimer:0,walkTarget:{x:W/2,y:100},
     afterImages:[],rotAngle:0,spreadAngle:0,voidTimer:220,stomping:false,slamTimer:80,
+    lungeTimer:180,lunging:false,lungeDur:0,
   };
   if(cfg.type==='hydra'){
     boss.r=50;
@@ -529,6 +530,7 @@ function spawnBoss(w){
     boss.r=52;
     boss.arms=[0,1,2,3].map(i=>({baseAngle:i*Math.PI/2,waveOffset:i*Math.PI/2,seg1x:W/2,seg1y:90,seg2x:W/2,seg2y:90,tipX:W/2,tipY:90,shootTimer:Math.floor(shootRate*(0.4+i*0.15))}));
   }
+  if(cfg.type==='wraith'){boss.SHOOT_RATE=140;boss.shootTimer=70;}
   if(cfg.type==='sovereign'){boss.hp=200;boss.maxHp=200;boss.r=40;}
   playSound('bossEnter');
   waveMsg=`⚠ ${cfg.bossName} AWAKENS ⚠`;waveMsgT=220;
@@ -551,10 +553,20 @@ function updateBoss(){
     b.shootTimer--;if(b.shootTimer<=0){b.shootTimer=b.SHOOT_RATE;const ba=Math.atan2(player.y-b.y,player.x-b.x);const cnt=b.phase===2?3:2;for(let i=0;i<cnt;i++){const sp=(i-(cnt-1)/2)*0.22;enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(ba+sp)*2.8,vy:Math.sin(ba+sp)*2.8,col:'#8a5a00',r:10,big:true});}b.warningFlash=10;}
 
   }else if(b.type==='wraith'){
-    const ang=Math.atan2(b.y-player.y,b.x-player.x);b.x+=Math.cos(ang)*b.spd*1.2;b.y+=Math.sin(ang)*b.spd*0.8;
+    // Lunge mechanic: periodically charge at player, then retreat
+    b.lungeTimer--;
+    if(b.lungeTimer<=0&&!b.lunging){b.lunging=true;b.lungeDur=32;burst(b.x,b.y,'#88eeff',10,2);}
+    if(b.lunging){
+      const la=Math.atan2(player.y-b.y,player.x-b.x);b.x+=Math.cos(la)*b.spd*5;b.y+=Math.sin(la)*b.spd*4;
+      b.lungeDur--;if(b.lungeDur<=0){b.lunging=false;b.lungeTimer=b.phase===2?160:240;}
+    } else {
+      const ang=Math.atan2(b.y-player.y,b.x-player.x);b.x+=Math.cos(ang)*b.spd*1.2;b.y+=Math.sin(ang)*b.spd*0.8;
+    }
     b.x=Math.max(55,Math.min(W-55,b.x));b.y=Math.max(40,Math.min(180,b.y));
-    b.mineTimer--;if(b.mineTimer<=0){b.mineTimer=200-b.phase*40;iceMines.push({x:b.x+(Math.random()-0.5)*80,y:b.y+50+Math.random()*60,r:14,life:600,armed:70,col:'#00eeff',armCol:'#0055aa'});}
-    b.shootTimer--;if(b.shootTimer<=0){b.shootTimer=b.SHOOT_RATE;const ba=Math.atan2(player.y-b.y,player.x-b.x);const cnt=b.phase===2?3:1;for(let i=0;i<cnt;i++){const sp=(i-(cnt-1)/2)*0.28;enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(ba+sp)*2.6,vy:Math.sin(ba+sp)*2.6,col:'#00eeff',r:9,big:true});}b.warningFlash=10;}
+    // Drop mines near player's position
+    b.mineTimer--;if(b.mineTimer<=0){b.mineTimer=b.phase===2?100:160;iceMines.push({x:player.x+(Math.random()-0.5)*120,y:player.y+(Math.random()-0.5)*80,r:14,life:600,armed:80,col:'#00eeff',armCol:'#0055aa'});}
+    // Faster shooting with slowing bullets
+    b.shootTimer--;if(b.shootTimer<=0){b.shootTimer=b.SHOOT_RATE;const ba=Math.atan2(player.y-b.y,player.x-b.x);const cnt=b.phase===2?4:2;for(let i=0;i<cnt;i++){const sp=(i-(cnt-1)/2)*0.28;enemyBullets.push({x:b.x,y:b.y,vx:Math.cos(ba+sp)*2.6,vy:Math.sin(ba+sp)*2.6,col:'#00eeff',r:9,big:true,slowing:true});}b.warningFlash=10;}
 
   }else if(b.type==='titan'){
     b.x+=b.vx*b.spd;b.y+=b.vy*b.spd*0.5;
@@ -731,7 +743,7 @@ function update(){
       }
     }
   }
-  enemyBullets.forEach((b,bi)=>{if(player.inv<=0&&!invincibleOn&&dist(b,player)<player.r+b.r){playSound('playerHit');lives--;player.inv=120;screenShake=18;burst(player.x,player.y,'#ff4444',12,3);enemyBullets.splice(bi,1);if(lives<=0)gameOver=true;}});
+  enemyBullets.forEach((b,bi)=>{if(player.inv<=0&&!invincibleOn&&dist(b,player)<player.r+b.r){playSound('playerHit');lives--;player.inv=120;screenShake=18;burst(player.x,player.y,'#ff4444',12,3);if(b.slowing)player.slowed=150;enemyBullets.splice(bi,1);if(lives<=0)gameOver=true;}});
   enemies.forEach(e=>{if(player.inv<=0&&!invincibleOn&&dist(e,player)<e.r+player.r){playSound('playerHit');lives--;player.inv=120;screenShake=18;if(lives<=0)gameOver=true;}});
   if(invincibleOn){enemyBullets.forEach((b,bi)=>{if(dist(b,player)<player.r+36){burst(b.x,b.y,'#ffdd00',4,2);enemyBullets.splice(bi,1);}});}
   if(!bossOn&&!waveTransition&&enemies.length===0&&spawnQueue.length===0&&waveMsgT<=0){waveTransition=true;setTimeout(()=>nextWave(),900);}
