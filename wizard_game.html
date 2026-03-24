@@ -434,7 +434,7 @@ function startGame(){
   bullets=[];enemies=[];particles=[];enemyBullets=[];iceMines=[];
   player={x:W/2,y:H/2,r:14,spd:4,inv:0,slowed:0};
   initAtmosphere();startMusic('FOREST');
-  spawnWave(wave);loop();
+  spawnWave(wave);loopToken++;loop(loopToken);
 }
 
 function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
@@ -1046,7 +1046,8 @@ function showVictory(){
   document.getElementById('victory-overlay').style.display='flex';
 }
 
-function loop(){update();draw();if(started)requestAnimationFrame(loop);}
+let loopToken=0;
+function loop(token){if(token!==loopToken)return;update();draw();if(started)requestAnimationFrame(()=>loop(token));}
 </script>
 </body>
 </html>
