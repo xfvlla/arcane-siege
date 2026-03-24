@@ -732,9 +732,8 @@ function update(){
     }
   }
   enemyBullets.forEach((b,bi)=>{if(player.inv<=0&&!invincibleOn&&dist(b,player)<player.r+b.r){playSound('playerHit');lives--;player.inv=120;screenShake=18;burst(player.x,player.y,'#ff4444',12,3);enemyBullets.splice(bi,1);if(lives<=0)gameOver=true;}});
-  enemies.forEach(e=>{if(player.inv<=0&&!invincibleOn&&dist(e,player)<e.r+player.r){playSound('playerHit');lives--;player.inv=120;screenShake=18;if(lives<=0)gameOver=true;}}); else if(invincibleOn){
-    enemyBullets.forEach((b,bi)=>{if(dist(b,player)<player.r+36){burst(b.x,b.y,'#ffdd00',4,2);enemyBullets.splice(bi,1);}});
-  }
+  enemies.forEach(e=>{if(player.inv<=0&&!invincibleOn&&dist(e,player)<e.r+player.r){playSound('playerHit');lives--;player.inv=120;screenShake=18;if(lives<=0)gameOver=true;}});
+  if(invincibleOn){enemyBullets.forEach((b,bi)=>{if(dist(b,player)<player.r+36){burst(b.x,b.y,'#ffdd00',4,2);enemyBullets.splice(bi,1);}});}
   if(!bossOn&&!waveTransition&&enemies.length===0&&spawnQueue.length===0&&waveMsgT<=0){waveTransition=true;setTimeout(()=>nextWave(),900);}
   document.getElementById('sc').textContent=score;
   document.getElementById('wv').textContent=wave;
