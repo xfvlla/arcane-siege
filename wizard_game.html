@@ -344,7 +344,7 @@ document.addEventListener('keydown',e=>{
       if(paused)stopLtSound();
     }
   }
-  e.preventDefault();
+  if(document.activeElement.tagName!=='INPUT')e.preventDefault();
 });
 document.addEventListener('keyup',e=>{
   delete keys[e.key];
