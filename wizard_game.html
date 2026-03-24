@@ -283,11 +283,11 @@ let fireLv=0,iceLv=0,lightningLv=0;
 let spawnQueue=[],spawnTimer=0,activeSpawnInterval=420;
 const SPAWN_INTERVAL=420;
 const UPGRADE_TREE={
-  fire:['COOLDOWN -35%','DAMAGE +50%, BIGGER SHOTS','WIDE BURST: 3 SHOTS, 60% DMG EACH'],
+  fire:['COOLDOWN -20%','DAMAGE +50%, BIGGER SHOTS','WIDE BURST: 3 SHOTS, 33% DMG EACH'],
   ice:['FREEZE LASTS 2X LONGER','SHOTS PIERCE ENEMIES','FROZEN KILLS EXPLODE'],
   lightning:['CHARGE TIME -40%','BOUNCES 5 ENEMIES','CHAINS TO NEARBY FOES']
 };
-function getFireCD(){return [18,12,10,8][fireLv];}
+function getFireCD(){return [18,15,13,11][fireLv];}
 function getLtChargeMax(){return lightningLv>=1?54:90;}
 function getLtBounces(){return lightningLv>=2?4:2;}
 function getIceFreeze(){return iceLv>=1?360:180;}
@@ -638,7 +638,7 @@ function update(){
     if(fireCooldown===0){
       const dm=(fireLv>=2?1.5:1);
       const ang=aimAngle();
-      if(fireLv>=3){[-0.45,0,0.45].forEach(off=>bullets.push(mkBullet('fire',ang+off,dm*0.6)));}
+      if(fireLv>=3){[-0.45,0,0.45].forEach(off=>bullets.push(mkBullet('fire',ang+off,dm*0.33)));}
       else bullets.push(mkBullet('fire',ang,dm));
       fireCooldown=getFireCD();playSound('fire');}
   }
@@ -731,10 +731,8 @@ function update(){
       }
     }
   }
-  if(player.inv<=0&&!invincibleOn){
-    enemyBullets.forEach((b,bi)=>{if(dist(b,player)<player.r+b.r){playSound('playerHit');lives--;player.inv=120;screenShake=18;burst(player.x,player.y,'#ff4444',12,3);enemyBullets.splice(bi,1);if(lives<=0)gameOver=true;}});
-    enemies.forEach(e=>{if(dist(e,player)<e.r+player.r){playSound('playerHit');lives--;player.inv=120;screenShake=18;if(lives<=0)gameOver=true;}});
-  } else if(invincibleOn){
+  enemyBullets.forEach((b,bi)=>{if(player.inv<=0&&!invincibleOn&&dist(b,player)<player.r+b.r){playSound('playerHit');lives--;player.inv=120;screenShake=18;burst(player.x,player.y,'#ff4444',12,3);enemyBullets.splice(bi,1);if(lives<=0)gameOver=true;}});
+  enemies.forEach(e=>{if(player.inv<=0&&!invincibleOn&&dist(e,player)<e.r+player.r){playSound('playerHit');lives--;player.inv=120;screenShake=18;if(lives<=0)gameOver=true;}}); else if(invincibleOn){
     enemyBullets.forEach((b,bi)=>{if(dist(b,player)<player.r+36){burst(b.x,b.y,'#ffdd00',4,2);enemyBullets.splice(bi,1);}});
   }
   if(!bossOn&&!waveTransition&&enemies.length===0&&spawnQueue.length===0&&waveMsgT<=0){waveTransition=true;setTimeout(()=>nextWave(),900);}
