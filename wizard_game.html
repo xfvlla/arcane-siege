@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>ARCANE SIEGE</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&display=swap');
@@ -29,9 +30,19 @@ canvas{display:block;}
 #pause-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
 #pause-overlay h2{color:#e8d5a3;font-size:38px;letter-spacing:6px;text-shadow:0 0 20px #aa8844;}
 #pause-overlay p{color:#9a8060;font-size:12px;letter-spacing:3px;}
+/* ── Mobile ── */
+#game-root{transform-origin:top center;}
+#rotate-msg{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:999;flex-direction:column;align-items:center;justify-content:center;gap:20px;color:#e8d5a3;font-family:'Cinzel',serif;font-size:16px;letter-spacing:3px;text-align:center;}
+#rotate-msg .icon{font-size:52px;animation:spin 1.8s ease-in-out infinite alternate;}
+@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(90deg);}}
+#mobile-spells{display:none;position:absolute;top:8px;left:50%;transform:translateX(-50%);flex-direction:row;gap:10px;z-index:50;}
+#mobile-spells button{background:rgba(0,0,0,0.65);border:2px solid #4a3520;color:#e8d5a3;font-size:22px;width:52px;height:52px;border-radius:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color 0.15s,background 0.15s;}
+#mobile-spells button.on{border-color:#e8d5a3;background:rgba(40,20,0,0.85);}
 </style>
 </head>
 <body>
+<div id="rotate-msg"><div class="icon">📱</div>ROTATE YOUR PHONE<br>TO PLAY</div>
+<div id="game-root">
 <div id="ui">
   <span>SCORE: <b id="sc">0</b></span>
   <span>WAVE: <b id="wv">1</b></span>
@@ -61,6 +72,11 @@ canvas{display:block;}
     <h2>PAUSED</h2>
     <p>PRESS SPACE TO RESUME</p>
   </div>
+  <div id="mobile-spells">
+    <button id="mb-fire" onclick="setSpell('fire')">🔥</button>
+    <button id="mb-ice" onclick="setSpell('ice')">❄</button>
+    <button id="mb-lightning" onclick="setSpell('lightning')">⚡</button>
+  </div>
 </div>
 <div id="bars">
   COOLDOWN: <div id="cd-wrap"><div id="cd-fill"></div></div>
@@ -70,6 +86,7 @@ canvas{display:block;}
   ⚡ CHARGE: <div id="lt-wrap"><div id="lt-fill"></div></div>
   <span id="lt-status" style="min-width:160px;text-align:right;font-size:10px;color:#cc99ff;"></span>
 </div>
+</div><!-- /game-root -->
 
 <style>
 .upg-card{background:#0d0808;border:2px solid #4a3520;border-radius:6px;padding:20px 24px;width:160px;text-align:center;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;gap:10px;align-items:center;}
@@ -307,6 +324,8 @@ const FIRE_CD=18,ICE_CD=18,LIGHTNING_CHARGE_MAX=90;
 let fireCooldown=0,iceCooldown=0;
 let ltCharge=0,ltCharging=false,ltReady=false;
 const keys={};
+const touch={moveId:null,fireId:null,jax:0,jay:0,jx:0,jy:0,active:false,fireActive:false};
+const isMobile=()=>'ontouchstart' in window||navigator.maxTouchPoints>0;
 
 const REALMS=[
   {name:'FOREST', sky0:'#050f05',sky1:'#0f2a0f',ground:'#0f2010',accent:'#1a4020',dark:false},
@@ -355,9 +374,78 @@ document.addEventListener('keyup',e=>{
   }
 });
 
+// ── Touch controls (mobile only — desktop keyboard untouched) ──
+function getTouchPos(t){
+  const r=canvas.getBoundingClientRect();
+  return{x:(t.clientX-r.left)*(700/r.width),y:(t.clientY-r.top)*(500/r.height)};
+}
+canvas.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    const p=getTouchPos(t);
+    if(p.x<700*0.45){
+      touch.moveId=t.identifier;touch.jax=p.x;touch.jay=p.y;touch.jx=0;touch.jy=0;touch.active=true;
+    } else {
+      touch.fireId=t.identifier;touch.fireActive=true;
+      if(spell==='lightning'&&started&&!ltCharging&&!ltReady){ltCharging=true;ltCharge=0;startLtSound();}
+    }
+  }
+},{passive:false});
+canvas.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier===touch.moveId){
+      const p=getTouchPos(t);const dx=p.x-touch.jax,dy=p.y-touch.jay;
+      const d=Math.hypot(dx,dy)||1;
+      touch.jx=dx/Math.max(d,55);touch.jy=dy/Math.max(d,55);
+    }
+  }
+},{passive:false});
+canvas.addEventListener('touchend',e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier===touch.moveId){touch.active=false;touch.jx=0;touch.jy=0;touch.moveId=null;}
+    if(t.identifier===touch.fireId){
+      touch.fireActive=false;touch.fireId=null;
+      if(spell==='lightning'){
+        stopLtSound();
+        if(ltReady&&!paused&&started){fireLightning();playSound('lt_fire');screenShake=12;}
+        ltCharging=false;ltReady=false;ltCharge=0;
+      }
+    }
+  }
+},{passive:false});
+canvas.addEventListener('touchcancel',e=>{
+  touch.active=false;touch.jx=0;touch.jy=0;touch.moveId=null;
+  touch.fireActive=false;touch.fireId=null;
+},{passive:false});
+
+// ── Scaling + rotate prompt ──
+function resizeGame(){
+  if(!isMobile())return;
+  const portrait=window.innerHeight>window.innerWidth;
+  document.getElementById('rotate-msg').style.display=portrait?'flex':'none';
+  if(portrait)return;
+  const s=Math.min(window.innerWidth/700,window.innerHeight/580);
+  const root=document.getElementById('game-root');
+  root.style.transform=`scale(${s})`;
+  root.style.marginTop=`${(580*(s-1))/2}px`;
+  // Hide desktop-only bars, show mobile spell buttons
+  document.getElementById('spellbar').style.display='none';
+  document.getElementById('bars').style.display='none';
+  document.getElementById('lightning-bar').style.display='none';
+  document.getElementById('mobile-spells').style.display='flex';
+}
+window.addEventListener('resize',resizeGame);
+window.addEventListener('orientationchange',resizeGame);
+resizeGame();
+
 function setSpell(s){
   spell=s;
-  ['fire','ice','lightning'].forEach(sp=>document.getElementById('slot-'+sp).classList.toggle('on',sp===s));
+  ['fire','ice','lightning'].forEach(sp=>{
+    document.getElementById('slot-'+sp).classList.toggle('on',sp===s);
+    const mb=document.getElementById('mb-'+sp);if(mb)mb.classList.toggle('on',sp===s);
+  });
 }
 
 function aimAngle(fromX,fromY){
@@ -646,7 +734,7 @@ function update(){
   frame++;
   if(fireCooldown>0)fireCooldown--;if(iceCooldown>0)iceCooldown--;if(screenShake>0)screenShake--;
   if(spawnQueue.length>0){spawnTimer--;if(spawnTimer<=0){const b=spawnQueue.shift();enemies.push(...b);spawnTimer=activeSpawnInterval;}}
-  if((keys['a']||keys['A'])&&spell==='fire'&&started){
+  if((keys['a']||keys['A']||(touch.fireActive&&spell==='fire'))&&spell==='fire'&&started){
     if(fireCooldown===0){
       const dm=(fireLv>=2?1.5:1);
       const ang=aimAngle();
@@ -654,7 +742,7 @@ function update(){
       else bullets.push(mkBullet('fire',ang,dm));
       fireCooldown=getFireCD();playSound('fire');}
   }
-  if((keys['s']||keys['S'])&&spell==='ice'&&started){
+  if((keys['s']||keys['S']||(touch.fireActive&&spell==='ice'))&&spell==='ice'&&started){
     if(iceCooldown===0){const ang=aimAngle();
       bullets.push(mkBullet('ice',ang,1));iceCooldown=ICE_CD;playSound('ice');}
   }
@@ -663,6 +751,7 @@ function update(){
   let dx=0,dy=0;
   if(keys['ArrowLeft'])dx-=moveSpd;if(keys['ArrowRight'])dx+=moveSpd;
   if(keys['ArrowUp'])dy-=moveSpd;if(keys['ArrowDown'])dy+=moveSpd;
+  if(touch.active){dx+=touch.jx*moveSpd;dy+=touch.jy*moveSpd;}
   if(dx&&dy){dx*=0.707;dy*=0.707;}
   player.x=Math.max(player.r,Math.min(W-player.r,player.x+dx));
   player.y=Math.max(player.r,Math.min(H-player.r,player.y+dy));
@@ -985,6 +1074,25 @@ function draw(){
   if(cpT>0){ctx.globalAlpha=Math.min(1,cpT/30);ctx.fillStyle='#ffdd88';ctx.font='bold 18px Cinzel';ctx.textAlign='center';ctx.fillText(cpMsg,W/2,H/2+50);ctx.globalAlpha=1;}
   ctx.textAlign='left';
   if(gameOver&&!gameOverShown){gameOverShown=true;stopMusic();showGameOver();}
+  // Touch HUD — only drawn on mobile, invisible to desktop
+  if(started&&!gameOver&&isMobile()){
+    const jbx=80,jby=435,jr=52;
+    ctx.globalAlpha=0.18;ctx.fillStyle='#e8d5a3';
+    ctx.beginPath();ctx.arc(jbx,jby,jr,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=0.35;ctx.strokeStyle='#e8d5a3';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(jbx,jby,jr,0,Math.PI*2);ctx.stroke();
+    if(touch.active){
+      const tx=jbx+touch.jx*jr,ty=jby+touch.jy*jr;
+      ctx.globalAlpha=0.6;ctx.fillStyle='#e8d5a3';
+      ctx.beginPath();ctx.arc(tx,ty,20,0,Math.PI*2);ctx.fill();
+    }
+    ctx.globalAlpha=touch.fireActive?0.14:0.05;ctx.fillStyle='#ff8844';
+    ctx.fillRect(700*0.45,0,700*0.55,500);
+    ctx.globalAlpha=0.22;ctx.fillStyle='#ff8844';
+    ctx.font='bold 26px Cinzel';ctx.textAlign='center';
+    ctx.fillText('▶ FIRE',700*0.725,462);
+    ctx.textAlign='left';ctx.globalAlpha=1;
+  }
   if(screenShake>0)ctx.restore();
 }
 
